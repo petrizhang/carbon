@@ -3,12 +3,12 @@ package com.pzque.coco.typer
 import scala.collection.mutable
 
 // TODO: to support recursive function call
-object TypeAnalyzer {
+class TypeAnalyzer {
   val reporter = new Reporter
 
   var count = 0
 
-  def makeFreshTVar(): TVar = {
+  def newTypeVariable(): TVar = {
     count += 1
     TVar(s"'t$count")
   }
@@ -31,7 +31,7 @@ object TypeAnalyzer {
       case PolyType(vars, body) =>
         assert(body.isInstanceOf[Type], "expected a monotype but got a polytype")
         val replaceMap = mutable.Map.empty[String, TVar]
-        vars.foreach(v => replaceMap.put(v, makeFreshTVar()))
+        vars.foreach(v => replaceMap.put(v, newTypeVariable()))
         replace(body, replaceMap)
     }
   }
@@ -99,13 +99,13 @@ object TypeAnalyzer {
       case Apply(func, arg) =>
         val givenFuncType = analyze(context, func)
         val givenArgType = analyze(context, arg)
-        val resultType = makeFreshTVar()
+        val resultType = newTypeVariable()
         val a = unify(TFunc(givenArgType, resultType), givenFuncType)
         a.asInstanceOf[TFunc].to
 
       // Lambda expression
       case Lambda(argName, body) =>
-        val argType = makeFreshTVar()
+        val argType = newTypeVariable()
         val retType = analyze(context + (argName -> argType), body)
         TFunc(argType, retType).instance
 
@@ -117,7 +117,7 @@ object TypeAnalyzer {
 
       // Letrec expression
       case LetRec(name, definition, body) =>
-        var tmpDefinitionType: Type = makeFreshTVar()
+        var tmpDefinitionType: Type = newTypeVariable()
         val newContext = context + (name -> tmpDefinitionType)
         val analyzedDefinitionType = analyze(newContext, definition)
         tmpDefinitionType = tmpDefinitionType.instance
@@ -142,6 +142,7 @@ object HMWRun extends App {
         Apply(Var("fix"), Var("f")))),
     Var("fix"))
 
-  val t = TypeAnalyzer.analyze(TypeContext.empty, e7)
+  val analyzer = new TypeAnalyzer
+  val t = analyzer.analyze(TypeContext.empty, e7)
   println(t)
 }

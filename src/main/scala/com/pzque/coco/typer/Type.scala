@@ -52,6 +52,12 @@ case class TFunc(from: Type, to: Type) extends Type {
   }
 }
 
+case class Generic(name: String, args: List[TVar]) extends Type {
+  override def instance: Type = this
+
+  override val freeTypeVariables: Set[String] = _
+}
+
 case class PolyType(vars: List[String], body: Type) extends Scheme {
   lazy val freeTypeVariables: Set[String] = body.freeTypeVariables -- vars
 
