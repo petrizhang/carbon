@@ -1,5 +1,5 @@
 <div align=center>
-<img src="https://raw.githubusercontent.com/pzque/coco/master/doc/coco-logo.png?token=ACTGKU3GKZ2JHEA2NUKOZGC56TIY4" width="200" alt="peaze logo"/>
+<img src="https://raw.githubusercontent.com/pzque/coco/master/doc/coco-logo-v3.png?token=ACTGKUY5Q75KUH2ICECRF5S56TJUM" width="300" alt="[coco logo]"/>
 </div>
 
 # Coco
