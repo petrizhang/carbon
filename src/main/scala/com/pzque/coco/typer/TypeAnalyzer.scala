@@ -48,9 +48,12 @@ object TypeAnalyzer {
   def unify(ta: Type, tb: Type): Type = {
     if (ta == tb) return ta
     unifyHelper(ta, tb, mutable.Set.empty)
-    ta.instance
+    val ret = ta.instance
+    assert(ret == tb.instance)
+    ret
   }
 
+  // TODO: fix here
   def unifyHelper(ta: Type, tb: Type, instantiatedSet: mutable.Set[String]): Unit = {
     (ta, tb) match {
       case (av: TVar, bv: TVar) =>
@@ -107,10 +110,20 @@ object TypeAnalyzer {
         TFunc(argType, retType).instance
 
       // Let expression
-      case Let(name, body, ret) =>
-        val bodyType = analyze(context, body)
+      case Let(name, definition, body) =>
+        val bodyType = analyze(context, definition)
         val genBodyScheme = gen(context, bodyType)
-        analyze(context + (name -> genBodyScheme), ret)
+        analyze(context + (name -> genBodyScheme), body)
+
+      // Letrec expression
+      case LetRec(name, definition, body) =>
+        var tmpDefinitionType: Type = makeFreshTVar()
+        val newContext = context + (name -> tmpDefinitionType)
+        val analyzedDefinitionType = analyze(newContext, definition)
+        tmpDefinitionType = tmpDefinitionType.instance
+        val bodyType = unify(tmpDefinitionType, analyzedDefinitionType)
+        val genBodyScheme = gen(newContext, bodyType)
+        analyze(context + (name -> genBodyScheme), body)
     }
   }
 }
@@ -123,7 +136,12 @@ object HMWRun extends App {
   val e4 = Let("x", e0, Var("x"))
   val e5 = Let("f", Lambda("x", Var("x")), Apply(Var("f"), Var("f")))
   val e6 = Lambda("y", Let("f", Lambda("x", Apply(Var("x"), Var("y"))), Var("f")))
+  val e7 = LetRec("fix",
+    Lambda("f",
+      Apply(Var("f"),
+        Apply(Var("fix"), Var("f")))),
+    Var("fix"))
 
-  val t = TypeAnalyzer.analyze(TypeContext.empty, Lambda("y", Apply(Var("y"), LitInt(1))))
+  val t = TypeAnalyzer.analyze(TypeContext.empty, e7)
   println(t)
 }

@@ -22,5 +22,8 @@ case class Apply(expr: Expr, arg: Expr) extends Expr
 case class Lambda(arg: String, body: Expr) extends Expr
 
 // LET
-case class Let(name: String, body: Expr, in: Expr) extends Expr
+case class Let(name: String, definition: Expr, body: Expr) extends Expr
+
+// LETREC
+case class LetRec(name: String, definition: Expr, body: Expr) extends Expr
 

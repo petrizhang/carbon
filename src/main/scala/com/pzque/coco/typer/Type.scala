@@ -27,7 +27,10 @@ case object TInt extends Type {
 case class TVar(name: String) extends Type {
   private var _instance: Type = this
 
-  override def instance: Type = _instance
+  override def instance: Type = _instance match {
+    case tv: TVar => if (tv == this) this else tv.instance
+    case _ => _instance.instance
+  }
 
   def instance_=(value: Type): Unit = {
     _instance = value
