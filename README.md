@@ -1,5 +1,5 @@
 <div align=center>
-<img src="https://raw.githubusercontent.com/pzque/peaze/master/doc/peaze-newlogo.png" width="300" alt="peaze logo"/>
+<img src="https://raw.githubusercontent.com/pzque/coco/master/doc/coco-logo.png?token=ACTGKUZE67EA3ZXGRQD5LUS56TFTE" width="300" alt="peaze logo"/>
 </div>
 # Coco
 A purely functional and strongly typed programming language running on JVM.
