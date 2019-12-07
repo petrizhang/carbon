@@ -1,3 +1,6 @@
+<div align=center>
+<img src="https://raw.githubusercontent.com/pzque/peaze/master/doc/peaze-newlogo.png" width="300" alt="peaze logo"/>
+</div>
 # Coco
 A purely functional and strongly typed programming language running on JVM.
 
