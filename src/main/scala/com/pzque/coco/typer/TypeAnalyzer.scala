@@ -71,9 +71,11 @@ class TypeAnalyzer {
 
   // TODO: fix here
   def unifyHelper(ta: Type, tb: Type, instantiatedSet: mutable.Set[String]): Unit = {
+    // The [[Generic.equals]] method costs too much, thus we skip generic types
+    if (!ta.isInstanceOf[Generic] && !tb.isInstanceOf[Generic] && ta == tb) return
+
     (ta, tb) match {
       case (av: TVar, bv: TVar) =>
-        if (av == bv) return
         if (instantiatedSet.contains(av.name)) {
           bv.instance = av.instance
           instantiatedSet.add(bv.name)
@@ -119,6 +121,12 @@ class TypeAnalyzer {
           case Some(t) => inst(context, t)
           case _ => sys.error(f"unresolved variable: $name")
         }
+      case If(condition, body, elseBody) =>
+        val conditionType = analyze(context, condition)
+        unify(conditionType, TBool)
+        val bodyType = analyze(context, body)
+        val elseType = analyze(context, elseBody)
+        unify(bodyType, elseType)
 
       // Function application
       case Apply(func, arg) =>
@@ -208,9 +216,17 @@ object HMWRun extends App {
 
   val e8 = Apply(Apply(Var("pair"), LitInt(1)), LitInt(2))
   val e9 = Apply(Var("test"), LitBool(true))
+
+  val e10 = LetRec(
+    Array(
+      ("f", Lambda("x", If(LitBool(true), LitInt(1), Apply(Var("g"), LitInt(1))))),
+      ("g", Lambda("x", If(LitBool(true), LitInt(1), Apply(Var("f"), LitInt(1)))))
+    ),
+    Apply(Var("f"), LitInt(1))
+  )
+
   val analyzer = new TypeAnalyzer
   val preContext = new TypeContext(prelude)
-
-  val t = analyzer.analyze(preContext, e7)
+  val t = analyzer.analyze(preContext, e10)
   println(t)
 }

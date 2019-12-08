@@ -12,6 +12,9 @@ case class LitInt(value: Int) extends Expr {
   override def toString: String = value.toString
 }
 
+// If expression
+case class If(condition: Expr, body: Expr, elseBody: Expr) extends Expr
+
 // VAR
 case class Var(name: String) extends Expr
 
@@ -26,4 +29,3 @@ case class Let(name: String, definition: Expr, body: Expr) extends Expr
 
 // LETREC
 case class LetRec(bindings: Array[(String, Expr)], body: Expr) extends Expr
-

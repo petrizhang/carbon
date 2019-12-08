@@ -52,7 +52,6 @@ case class TVar(name: String) extends Type {
 
   override def toString: String = s"$name"
 
-
   private def occurs(name: String, right: Type): Boolean = {
     right match {
       case TBool => false
