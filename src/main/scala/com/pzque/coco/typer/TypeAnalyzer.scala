@@ -13,7 +13,7 @@ class TypeAnalyzer {
     TVar(s"'t$count")
   }
 
-  final def replace(t: Type, according: mutable.Map[String, TVar]): Type = {
+  def replace(t: Type, according: mutable.Map[String, TVar]): Type = {
     t match {
       case TBool => TBool
       case TInt => TInt
@@ -24,7 +24,13 @@ class TypeAnalyzer {
     }
   }
 
-  // Instance a polytype (apply a type lambda)
+  /**
+    * Instance a polytype (apply a type lambda)
+    *
+    * @param context
+    * @param scheme
+    * @return
+    */
   def inst(context: TypeContext, scheme: Scheme): Type = {
     scheme match {
       case t: Type => t
@@ -36,6 +42,13 @@ class TypeAnalyzer {
     }
   }
 
+  /**
+    * Generalize a monomorphism type to a polymorphism type
+    *
+    * @param context
+    * @param t
+    * @return
+    */
   def gen(context: TypeContext, t: Type): Scheme = {
     val params = t.freeTypeVariables -- context.freeTypeVariables
     if (params.isEmpty) {
@@ -51,7 +64,7 @@ class TypeAnalyzer {
     val required = ta.instance
     val found = tb.instance
     if (required != found) {
-      reporter.error(new TypeMismatch(found, required))
+      reporter.error(new TypeMismatchError(found, required))
     }
     required
   }
@@ -60,6 +73,7 @@ class TypeAnalyzer {
   def unifyHelper(ta: Type, tb: Type, instantiatedSet: mutable.Set[String]): Unit = {
     (ta, tb) match {
       case (av: TVar, bv: TVar) =>
+        if (av == bv) return
         if (instantiatedSet.contains(av.name)) {
           bv.instance = av.instance
           instantiatedSet.add(bv.name)
@@ -81,13 +95,13 @@ class TypeAnalyzer {
         unifyHelper(aTo, bTo, instantiatedSet)
       case (Generic(aName, aParams), Generic(bName, bParams)) =>
         if (aName != bName || aParams.length != bParams.length) {
-          reporter.error(new TypeMismatch(ta, tb.instance))
+          reporter.error(new TypeMismatchError(ta, tb.instance))
         }
         aParams zip bParams foreach { case (aParamType, bParamType) =>
           unifyHelper(aParamType, bParamType, instantiatedSet)
         }
       case _ =>
-        reporter.error(new TypeMismatch(ta.instance, tb.instance))
+        reporter.error(new TypeMismatchError(ta.instance, tb.instance))
     }
   }
 
@@ -111,9 +125,15 @@ class TypeAnalyzer {
         val givenFuncType = analyze(context, func)
         val givenArgType = analyze(context, arg)
         val resultType = newTypeVariable()
-        val a = unify(TFunc(givenArgType, resultType), givenFuncType)
-        a.asInstanceOf[TFunc].to
-
+        try {
+          val a = unify(TFunc(givenArgType, resultType), givenFuncType)
+          a.asInstanceOf[TFunc].to
+        } catch {
+          case e: OccursCheckError =>
+            throw new TypeMismatchDueToOccursCheck(e.message,
+              givenArgType,
+              givenFuncType.asInstanceOf[TFunc].from)
+        }
       // Lambda expression
       case Lambda(argName, body) =>
         val argType = newTypeVariable()
@@ -122,19 +142,35 @@ class TypeAnalyzer {
 
       // Let expression
       case Let(name, definition, body) =>
-        val bodyType = analyze(context, definition)
-        val genBodyScheme = gen(context, bodyType)
-        analyze(context + (name -> genBodyScheme), body)
+        val definitionType = analyze(context, definition)
+        val genDefinitionType = gen(context, definitionType)
+        analyze(context + (name -> genDefinitionType), body)
 
       // Letrec expression
-      case LetRec(name, definition, body) =>
-        var tmpDefinitionType: Type = newTypeVariable()
-        val newContext = context + (name -> tmpDefinitionType)
-        val analyzedDefinitionType = analyze(newContext, definition)
-        tmpDefinitionType = tmpDefinitionType.instance
-        val bodyType = unify(tmpDefinitionType, analyzedDefinitionType)
-        val genBodyScheme = gen(newContext, bodyType)
-        analyze(context + (name -> genBodyScheme), body)
+      case LetRec(bindings, body) =>
+        var bindingAnalyzeContext = context
+        // Set a temporary type for each variable occurs in bindings
+        val tempTypeVariables: Array[TVar] =
+          bindings map { case (name, _) =>
+            val tempTVar = newTypeVariable()
+            bindingAnalyzeContext += (name -> tempTVar)
+            tempTVar
+          }
+
+        // Unify each bindings
+        val bindingNameAndTypes: Array[(String, Type)] =
+          tempTypeVariables zip bindings map { case (tempTVar, (name, bindingExpr)) =>
+            val exprType = analyze(bindingAnalyzeContext, bindingExpr)
+            val tempType = tempTVar.instance // this line must follow the above line
+            (name, unify(tempType, exprType))
+          }
+
+        // Generalize the expressions's types
+        var bodyAnalyzeContext = context
+        bindingNameAndTypes foreach { case (name, bindingExprType) =>
+          bodyAnalyzeContext += (name -> gen(context, bindingExprType))
+        }
+        analyze(bodyAnalyzeContext, body)
     }
   }
 }
@@ -152,7 +188,8 @@ object HMWRun extends App {
   val b = TVar("b")
 
   val prelude = Map(
-    "pair" -> TFunc(b, TFunc(a, Generic("Pair", Array(a, b))))
+    "pair" -> TFunc(b, TFunc(a, Generic("Pair", Array(a, b)))),
+    "test" -> TFunc(Generic("Pair", Array(TInt, TInt)), TInt)
   )
 
   val e0 = LitBool(true)
@@ -162,16 +199,18 @@ object HMWRun extends App {
   val e4 = Let("x", e0, Var("x"))
   val e5 = Let("f", Lambda("x", Var("x")), Apply(Var("f"), Var("f")))
   val e6 = Lambda("y", Let("f", Lambda("x", Apply(Var("x"), Var("y"))), Var("f")))
-  val e7 = LetRec("fix",
-    Lambda("f",
+  val e7 = LetRec(
+    Array(("fix", Lambda("f",
       Apply(Var("f"),
-        Apply(Var("fix"), Var("f")))),
-    Var("fix"))
+        Apply(Var("fix"), Var("f")))))),
+    Apply(Var("fix"), Var("fix"))
+  )
 
   val e8 = Apply(Apply(Var("pair"), LitInt(1)), LitInt(2))
+  val e9 = Apply(Var("test"), LitBool(true))
   val analyzer = new TypeAnalyzer
   val preContext = new TypeContext(prelude)
 
-  val t = analyzer.analyze(preContext, e8)
+  val t = analyzer.analyze(preContext, e7)
   println(t)
 }

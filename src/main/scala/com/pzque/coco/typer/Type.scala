@@ -10,6 +10,14 @@ sealed trait Type extends Scheme {
   def instance: Type
 }
 
+case object TUnit extends Type {
+  override def instance: Type = TUnit
+
+  lazy val freeTypeVariables: Set[String] = Set.empty
+
+  override def toString: String = "Unit"
+}
+
 case object TBool extends Type {
   override def instance: Type = TBool
 
@@ -34,13 +42,28 @@ case class TVar(name: String) extends Type {
     case _ => _instance.instance
   }
 
+
   def instance_=(value: Type): Unit = {
+    if (occurs(name, value)) throw new OccursCheckError(this.instance, value.instance)
     _instance = value
   }
 
   lazy val freeTypeVariables: Set[String] = Set(name)
 
   override def toString: String = s"$name"
+
+
+  private def occurs(name: String, right: Type): Boolean = {
+    right match {
+      case TBool => false
+      case TInt => false
+      case tv: TVar => tv.name == name
+      case TFunc(from, to) =>
+        occurs(name, from) || occurs(name, to)
+      case Generic(name, params) =>
+        params.exists(p => occurs(name, p))
+    }
+  }
 }
 
 case class TFunc(from: Type, to: Type) extends Type {

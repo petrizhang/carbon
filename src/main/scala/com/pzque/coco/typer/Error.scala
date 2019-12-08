@@ -1,24 +1,43 @@
 package com.pzque.coco.typer
 
-import scala.reflect.internal.util.Position
+sealed abstract class AbsError(val message: String)
+  extends Exception(s"RuntimeError: $message") {
 
-sealed abstract class AbsError extends Error {
-  def errPos: Position = ???
+  def this(message: String, cause: Throwable) {
+    this(message)
+    initCause(cause)
+  }
 
-  def errMsg: String
+  def this(cause: Throwable) {
+    this(Option(cause).map(_.toString).orNull, cause)
+  }
 
-  override def toString: String = "[Type error at:" + errPos + "] " + errMsg
+  def this() {
+    this(null: String)
+  }
 }
 
-class TypeMismatch(found: Type, required: Type) extends AbsError {
-  override def errMsg: String =
-    s"""
-       | type mismatch:
-       | found : $found
-       | required: $required
-       |""".stripMargin
-}
+class TypeMismatchError(found: Type, required: Type) extends AbsError(
+  s"""
+     | Type mismatch:
+     | found : $found
+     | required: $required
+     |""".stripMargin
+)
+
+
+class TypeMismatchDueToOccursCheck(occursCheckMsg: String, found: Type, required: Type) extends AbsError(
+  s"""
+     | $occursCheckMsg
+     | found : $found
+     | required: $required
+     |""".stripMargin
+)
+
+class OccursCheckError(left: Type, right: Type) extends AbsError(
+  s"""Occurs check: cannot construct the infinite type: $left ~ $right"""
+)
 
 class Reporter {
-  def error(err: AbsError): Nothing = sys.error(err.errMsg)
+  def error(err: AbsError): Nothing = throw err
 }

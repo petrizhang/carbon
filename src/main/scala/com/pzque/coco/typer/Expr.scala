@@ -25,5 +25,5 @@ case class Lambda(arg: String, body: Expr) extends Expr
 case class Let(name: String, definition: Expr, body: Expr) extends Expr
 
 // LETREC
-case class LetRec(name: String, definition: Expr, body: Expr) extends Expr
+case class LetRec(bindings: Array[(String, Expr)], body: Expr) extends Expr
 
