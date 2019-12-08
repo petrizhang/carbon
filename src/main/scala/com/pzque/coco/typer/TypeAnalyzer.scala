@@ -41,16 +41,19 @@ class TypeAnalyzer {
     if (params.isEmpty) {
       t
     } else {
-      PolyType(params.toList, t)
+      PolyType(params.toArray, t)
     }
   }
 
   def unify(ta: Type, tb: Type): Type = {
     if (ta == tb) return ta
     unifyHelper(ta, tb, mutable.Set.empty)
-    val ret = ta.instance
-    assert(ret == tb.instance)
-    ret
+    val required = ta.instance
+    val found = tb.instance
+    if (required != found) {
+      reporter.error(new TypeMismatch(found, required))
+    }
+    required
   }
 
   // TODO: fix here
@@ -76,7 +79,15 @@ class TypeAnalyzer {
       case (TFunc(aFrom, aTo), TFunc(bFrom, bTo)) =>
         unifyHelper(aFrom, bFrom, instantiatedSet)
         unifyHelper(aTo, bTo, instantiatedSet)
-      case _ => assert(ta == tb)
+      case (Generic(aName, aParams), Generic(bName, bParams)) =>
+        if (aName != bName || aParams.length != bParams.length) {
+          reporter.error(new TypeMismatch(ta, tb.instance))
+        }
+        aParams zip bParams foreach { case (aParamType, bParamType) =>
+          unifyHelper(aParamType, bParamType, instantiatedSet)
+        }
+      case _ =>
+        reporter.error(new TypeMismatch(ta.instance, tb.instance))
     }
   }
 
@@ -129,6 +140,21 @@ class TypeAnalyzer {
 }
 
 object HMWRun extends App {
+  /**
+    * TODO: fix the bug when a type lambda's parameters and body are
+    * using different references of a single Type Variable.
+    * e.g.
+    * TFunc(TVar("a"), Generic("List", TVar("a"))) is a wrong construction.
+    * where TVar("a") in parameters and body are two different objects.
+    */
+
+  val a = TVar("a")
+  val b = TVar("b")
+
+  val prelude = Map(
+    "pair" -> TFunc(b, TFunc(a, Generic("Pair", Array(a, b))))
+  )
+
   val e0 = LitBool(true)
   val e1 = LitInt(1)
   val e2 = Lambda("x", Var("x"))
@@ -142,7 +168,10 @@ object HMWRun extends App {
         Apply(Var("fix"), Var("f")))),
     Var("fix"))
 
+  val e8 = Apply(Apply(Var("pair"), LitInt(1)), LitInt(2))
   val analyzer = new TypeAnalyzer
-  val t = analyzer.analyze(TypeContext.empty, e7)
+  val preContext = new TypeContext(prelude)
+
+  val t = analyzer.analyze(preContext, e8)
   println(t)
 }

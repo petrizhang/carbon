@@ -1,5 +1,7 @@
 package com.pzque.coco.typer
 
+import scala.collection.mutable
+
 sealed trait Scheme {
   val freeTypeVariables: Set[String]
 }
@@ -52,13 +54,35 @@ case class TFunc(from: Type, to: Type) extends Type {
   }
 }
 
-case class Generic(name: String, args: List[TVar]) extends Type {
-  override def instance: Type = this
+case class Generic(name: String, params: Array[Type]) extends Type {
+  override def instance: Type = Generic(name, params.map(_.instance))
 
-  override val freeTypeVariables: Set[String] = _
+  override lazy val freeTypeVariables: Set[String] = params.flatMap(_.freeTypeVariables).toSet
+
+  override def toString: String = s"""$name ${params.mkString(" ")}"""
+
+  override def equals(obj: Any): Boolean = {
+    obj.isInstanceOf[Generic] && obj.toString == toString
+  }
 }
 
-case class PolyType(vars: List[String], body: Type) extends Scheme {
+/**
+  * This class is used to achieve let polymorphism.
+  * e.g.
+  * let f = \x => x in f f
+  * *   |            --| |--
+  * *  1st          2nd  3rd
+  * There 3 'f' occurs in above let expression, we first generalize the 1st 'f' as a 'PolyType'
+  * then the 2nd and 3rd 'f' will be instantiated with two different types.
+  * Thus the type inference procedure could continue.
+  *
+  * Here `f f` means apply a function of type `T1 -> T1` to a parameter of type `T2 -> T2`.
+  * Rather than apply a `T -> T` function to a `T -> T` type, which is obviously an error.
+  *
+  * @param vars
+  * @param body
+  */
+case class PolyType(vars: Array[String], body: Type) extends Scheme {
   lazy val freeTypeVariables: Set[String] = body.freeTypeVariables -- vars
 
   override def toString: String = vars.mkString("$", ".$", s" => ${body.toString}")
