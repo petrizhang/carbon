@@ -47,7 +47,7 @@ f :: a -> a -> a
 f x y = x + y 
 
 sum :: Int -> Int
-sum n = if n == 1 then 1 else n + (sum n-1)
+sum n = if n == 1 then 1 else n + sum (n-1)
 
 add :: Int -> Int
 add = \x -> x + 1
