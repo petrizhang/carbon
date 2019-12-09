@@ -2,7 +2,7 @@
 version: 4.0.0
 name: Jekyll • Simple, blog-aware, static sites
 description: Transform your plain text into static websites and blogs
-url: https://pzque.github.io/coco
+url: https://pzque.github.io/coco/
 repository: https://github.com/pzque/coco
 timezone: America/Los_Angeles
 twitter:
