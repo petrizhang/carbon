@@ -1,5 +1,6 @@
 package com.pzque.coco.typer
 
+
 import scala.collection.mutable
 
 // TODO: to support recursive function call
@@ -73,7 +74,9 @@ class TypeAnalyzer {
   // TODO: fix here
   def unifyHelper(ta: Type, tb: Type, instantiatedSet: mutable.Set[String]): Unit = {
     // The [[Generic.equals]] method costs too much, thus we skip generic types
-    if (!ta.isInstanceOf[Generic] && !tb.isInstanceOf[Generic] && ta == tb) return
+    if (!ta.isInstanceOf[Generic] && !tb.isInstanceOf[Generic]
+      && !ta.isInstanceOf[TFunc] && !tb.isInstanceOf[TFunc]
+      && ta == tb) return
 
     (ta, tb) match {
       case (av: TVar, bv: TVar) =>
@@ -122,7 +125,7 @@ class TypeAnalyzer {
       case Var(name) =>
         context.get(name) match {
           case Some(t) => inst(context, t)
-          case _ => sys.error(f"unresolved variable: $name")
+          case _ => throw new CannotFindVariable(name)
         }
 
       case If(condition, body, elseBody) =>
@@ -136,12 +139,12 @@ class TypeAnalyzer {
       case Apply(func, args) =>
         val givenFuncTypeRaw = analyze(context, func)
         // TODO report error
-        assert(givenFuncTypeRaw.isInstanceOf[TFunc], "expected a function")
+        if (!givenFuncTypeRaw.isInstanceOf[TFunc]) throw new IsNotAFunction(func)
+
         var givenFuncType = givenFuncTypeRaw.asInstanceOf[TFunc]
         val requiredArgTypes = givenFuncType.from
         if (requiredArgTypes.length < args.length) {
-          // TODO report error
-          throw new IllegalArgumentException("wrong number of arguments")
+          throw new TooManyArguments(requiredArgTypes.length, args.length)
         } else if (requiredArgTypes.length > args.length) {
           givenFuncType = givenFuncType.partialApply(args.length)
         }
@@ -155,7 +158,7 @@ class TypeAnalyzer {
           case e: OccursCheckError =>
             throw new TypeMismatchDueToOccursCheck(e.message,
               givenArgsType,
-              givenFuncType.asInstanceOf[TFunc].from)
+              givenFuncType.from)
         }
 
       // Lambda expression
@@ -199,7 +202,7 @@ class TypeAnalyzer {
   }
 }
 
-object AnyalyzerTest extends App {
+object AnalyzerTest extends App {
   /**
     * TODO: fix the bug when a type lambda's parameters and body are
     * using different references of a single Type Variable.
