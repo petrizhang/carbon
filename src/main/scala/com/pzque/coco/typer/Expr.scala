@@ -19,7 +19,7 @@ case class If(condition: Expr, body: Expr, elseBody: Expr) extends Expr
 case class Var(name: String) extends Expr
 
 // APP
-case class Apply(expr: Expr, arg: Expr) extends Expr
+case class Apply(expr: Expr, args: Array[Expr]) extends Expr
 
 // ABS
 case class Lambda(arg: String, body: Expr) extends Expr

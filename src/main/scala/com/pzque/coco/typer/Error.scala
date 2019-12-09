@@ -1,7 +1,7 @@
 package com.pzque.coco.typer
 
 sealed abstract class AbsError(val message: String)
-  extends Exception(s"RuntimeError: $message") {
+  extends Exception(message) {
 
   def this(message: String, cause: Throwable) {
     this(message)
@@ -26,11 +26,11 @@ class TypeMismatchError(found: Type, required: Type) extends AbsError(
 )
 
 
-class TypeMismatchDueToOccursCheck(occursCheckMsg: String, found: Type, required: Type) extends AbsError(
+class TypeMismatchDueToOccursCheck(occursCheckMsg: String, found: Array[Type], required: Array[Type]) extends AbsError(
   s"""
      | $occursCheckMsg
-     | found : $found
-     | required: $required
+     | found : ${found.mkString(",")}
+     | required:  ${required.mkString(",")}
      |""".stripMargin
 )
 

@@ -58,21 +58,51 @@ case class TVar(name: String) extends Type {
       case TInt => false
       case tv: TVar => tv.name == name
       case TFunc(from, to) =>
-        occurs(name, from) || occurs(name, to)
+        from.exists(t => occurs(name, t)) || occurs(name, to)
       case Generic(name, params) =>
         params.exists(p => occurs(name, p))
     }
   }
 }
 
-case class TFunc(from: Type, to: Type) extends Type {
-  override def instance: Type = TFunc(from.instance, to.instance)
+// TODO: check currying situations carefully
+// e.g. TFunc(["a","b"], ["c","d"] -> "f") should be ["a","b","c","d"] -> "f"
+case class TFunc(from: Array[Type], to: Type) extends Type {
+  override def instance: Type = TFunc(from.map(_.instance), to.instance)
 
-  lazy val freeTypeVariables: Set[String] = from.freeTypeVariables ++ to.freeTypeVariables
+  lazy val freeTypeVariables: Set[String] = from.flatMap(_.freeTypeVariables).toSet ++ to.freeTypeVariables
+
+  def partialApply(n: Int): TFunc = {
+    val heads = from.view.slice(0, n)
+    val tail = from.view.slice(n, from.length)
+
+    val newTo = to match {
+      case TFunc(fargs, fto) =>
+        TFunc((tail ++ fargs).toArray, fto)
+      case _ => TFunc(tail.toArray, to)
+    }
+    TFunc(heads.toArray[Type], newTo)
+  }
 
   override def toString: String = {
-    val fromString = if (from.isInstanceOf[TFunc]) s"($from)" else from.toString
-    s"$fromString -> $to"
+    val fromString = TFunc.formatArgTypes(from)
+    s"$fromString$to"
+  }
+
+  // TODO: optimize here
+  override def equals(obj: Any): Boolean = {
+    obj.isInstanceOf[TFunc] && obj.toString == toString
+  }
+}
+
+object TFunc {
+  def formatArgTypes(argTypes: Array[Type]): String = {
+    val builder = new mutable.StringBuilder
+    argTypes foreach { t =>
+      val repr = if (t.isInstanceOf[TFunc]) s"($t) -> " else s"$t -> "
+      builder.append(repr)
+    }
+    builder.toString()
   }
 }
 

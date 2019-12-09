@@ -20,7 +20,8 @@ class TypeAnalyzer {
       case TVar(name) =>
         according.getOrElse(name, TVar(name))
       case TFunc(from, to) =>
-        TFunc(replace(from, according), replace(to, according))
+        TFunc(from.map(t => replace(t, according)),
+          replace(to, according))
     }
   }
 
@@ -93,7 +94,9 @@ class TypeAnalyzer {
         bv.instance = ta
         instantiatedSet.add(bv.name)
       case (TFunc(aFrom, aTo), TFunc(bFrom, bTo)) =>
-        unifyHelper(aFrom, bFrom, instantiatedSet)
+        aFrom zip bFrom foreach { case (a, b) =>
+          unifyHelper(a, b, instantiatedSet)
+        }
         unifyHelper(aTo, bTo, instantiatedSet)
       case (Generic(aName, aParams), Generic(bName, bParams)) =>
         if (aName != bName || aParams.length != bParams.length) {
@@ -121,6 +124,7 @@ class TypeAnalyzer {
           case Some(t) => inst(context, t)
           case _ => sys.error(f"unresolved variable: $name")
         }
+
       case If(condition, body, elseBody) =>
         val conditionType = analyze(context, condition)
         unify(conditionType, TBool)
@@ -129,24 +133,36 @@ class TypeAnalyzer {
         unify(bodyType, elseType)
 
       // Function application
-      case Apply(func, arg) =>
-        val givenFuncType = analyze(context, func)
-        val givenArgType = analyze(context, arg)
+      case Apply(func, args) =>
+        val givenFuncTypeRaw = analyze(context, func)
+        // TODO report error
+        assert(givenFuncTypeRaw.isInstanceOf[TFunc], "expected a function")
+        var givenFuncType = givenFuncTypeRaw.asInstanceOf[TFunc]
+        val requiredArgTypes = givenFuncType.from
+        if (requiredArgTypes.length < args.length) {
+          // TODO report error
+          throw new IllegalArgumentException("wrong number of arguments")
+        } else if (requiredArgTypes.length > args.length) {
+          givenFuncType = givenFuncType.partialApply(args.length)
+        }
+
+        val givenArgsType = args.map(x => analyze(context, x))
         val resultType = newTypeVariable()
         try {
-          val a = unify(TFunc(givenArgType, resultType), givenFuncType)
+          val a = unify(TFunc(givenArgsType, resultType), givenFuncType)
           a.asInstanceOf[TFunc].to
         } catch {
           case e: OccursCheckError =>
             throw new TypeMismatchDueToOccursCheck(e.message,
-              givenArgType,
+              givenArgsType,
               givenFuncType.asInstanceOf[TFunc].from)
         }
+
       // Lambda expression
       case Lambda(argName, body) =>
         val argType = newTypeVariable()
         val retType = analyze(context + (argName -> argType), body)
-        TFunc(argType, retType).instance
+        TFunc(Array(argType), retType).instance
 
       // Let expression
       case Let(name, definition, body) =>
@@ -183,7 +199,7 @@ class TypeAnalyzer {
   }
 }
 
-object HMWRun extends App {
+object AnyalyzerTest extends App {
   /**
     * TODO: fix the bug when a type lambda's parameters and body are
     * using different references of a single Type Variable.
@@ -196,37 +212,40 @@ object HMWRun extends App {
   val b = TVar("b")
 
   val prelude = Map(
-    "pair" -> TFunc(b, TFunc(a, Generic("Pair", Array(a, b)))),
-    "test" -> TFunc(Generic("Pair", Array(TInt, TInt)), TInt)
+    "pair" -> TFunc(Array(a, b), Generic("Pair", Array(a, b))),
+    "test" -> TFunc(Array(Generic("Pair", Array(TInt, TInt))), TInt)
   )
 
   val e0 = LitBool(true)
   val e1 = LitInt(1)
   val e2 = Lambda("x", Var("x"))
-  val e3 = Apply(e2, e1)
+  val e3 = Apply(e2, Array(e1))
   val e4 = Let("x", e0, Var("x"))
-  val e5 = Let("f", Lambda("x", Var("x")), Apply(Var("f"), Var("f")))
-  val e6 = Lambda("y", Let("f", Lambda("x", Apply(Var("x"), Var("y"))), Var("f")))
+  val e5 = Let("f", Lambda("x", Var("x")), Apply(Var("f"), Array(Var("f"))))
+  val e6 = Lambda("y", Let("f", Lambda("x", Apply(Var("x"), Array(Var("y")))), Var("f")))
+
   val e7 = LetRec(
-    Array(("fix", Lambda("f",
-      Apply(Var("f"),
-        Apply(Var("fix"), Var("f")))))),
-    Apply(Var("fix"), Var("fix"))
+    Array(
+      ("fix",
+        Lambda("f",
+          Apply(Var("f"),
+            Array(Apply(Var("fix"), Array(Var("f")))))))),
+    Apply(Var("fix"), Array(Var("fix")))
   )
 
-  val e8 = Apply(Apply(Var("pair"), LitInt(1)), LitInt(2))
-  val e9 = Apply(Var("test"), LitBool(true))
+  val e8 = Apply(Var("pair"), Array(LitInt(1), LitInt(2)))
+  val e9 = Apply(Var("test"), Array(LitBool(true)))
 
   val e10 = LetRec(
     Array(
-      ("f", Lambda("x", If(LitBool(true), LitInt(1), Apply(Var("g"), LitInt(1))))),
-      ("g", Lambda("x", If(LitBool(true), LitInt(1), Apply(Var("f"), LitInt(1)))))
+      ("f", Lambda("x", If(LitBool(true), LitInt(1), Apply(Var("g"), Array(LitInt(1)))))),
+      ("g", Lambda("x", If(LitBool(true), LitInt(1), Apply(Var("f"), Array(LitInt(1))))))
     ),
-    Apply(Var("f"), LitInt(1))
+    Apply(Var("f"), Array(LitInt(1)))
   )
 
   val analyzer = new TypeAnalyzer
   val preContext = new TypeContext(prelude)
-  val t = analyzer.analyze(preContext, e10)
+  val t = analyzer.analyze(preContext, Apply(Var("pair"), Array(LitBool(true))))
   println(t)
 }
