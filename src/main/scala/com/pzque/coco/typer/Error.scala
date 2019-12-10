@@ -17,22 +17,21 @@ sealed abstract class AbsError(val message: String)
   }
 }
 
-class TypeMismatchError(found: Type, required: Type) extends AbsError(
+class TypeMismatchError(expected: Type, actual: Type) extends AbsError(
   s"""
      | type mismatch:
-     | required: $required
-     | found : $found
+     | expected type: $expected
+     |   actual type: $actual
      |""".stripMargin
 )
 
-
 class TypeMismatchDueToOccursCheck(occursCheckMsg: String,
-                                   found: Array[Type],
-                                   required: Array[Type]) extends AbsError(
+                                   expected: Type,
+                                   actual: Type) extends AbsError(
   s"""
      | $occursCheckMsg
-     | required:  ${required.mkString(",")}
-     | found : ${found.mkString(",")}
+     | expected type: ${expected}
+     |   actual type: ${actual}
      |""".stripMargin
 )
 
@@ -48,16 +47,16 @@ class IsNotAFunction(expr: Expr) extends AbsError(
      |""".stripMargin
 )
 
-class TooManyArguments(required: Int, found: Int) extends AbsError(
+class TooManyArguments(expected: Int, actual: Int) extends AbsError(
   s"""
      | too many arguments:
-     | required:  ${required}
-     | found : ${found}
+     | expected:  ${expected}
+     |   actual: ${actual}
      |""".stripMargin
 )
 
-class OccursCheckError(left: Type, right: Type) extends AbsError(
-  s"""occurs check: cannot construct the infinite type: $left ~ $right"""
+class OccursCheckError(name: String, right: Type) extends AbsError(
+  s"""occurs check: cannot construct the infinite type: $name ~ $right"""
 )
 
 class Reporter {

@@ -1,7 +1,45 @@
 package com.pzque.coco.typer
 
-
 import scala.collection.mutable
+
+class Constraint {
+  private val _internalMap: mutable.Map[String, Type] = mutable.Map.empty
+  private val _valueSet: mutable.Set[String] = mutable.Set.empty
+
+  def internalMap: mutable.Map[String, Type] = _internalMap
+
+  def valueSet: mutable.Set[String] = _valueSet
+
+  def put(key: String, value: Type): Option[Type] = {
+    if (occurs(key, value)) throw new OccursCheckError(key, value)
+    value match {
+      case tv: TVar => _valueSet.add(tv.name)
+      case _ =>
+    }
+    internalMap.put(key, value)
+  }
+
+  def contains(key: String): Boolean = internalMap.contains(key)
+
+  def valueContains(value: String): Boolean = valueSet.contains(value)
+
+  def apply(key: String): Type = internalMap(key)
+
+  def getOrElse(key: String, default: Type): Type = internalMap.getOrElse(key, default)
+
+  private def occurs(name: String, right: Type): Boolean = {
+    right match {
+      case TBool => false
+      case TInt => false
+      case tv: TVar => tv.name == name
+      case TFunc(from, to) =>
+        from.exists(t => occurs(name, t)) || occurs(name, to)
+      case Generic(name, params) =>
+        params.exists(p => occurs(name, p))
+    }
+  }
+
+}
 
 // TODO: to support recursive function call
 class TypeAnalyzer {
@@ -14,7 +52,7 @@ class TypeAnalyzer {
     TVar(s"'t$count")
   }
 
-  def replace(t: Type, according: mutable.Map[String, TVar]): Type = {
+  def replace(t: Type, according: mutable.Map[String, Type]): Type = {
     t match {
       case TBool => TBool
       case TInt => TInt
@@ -23,6 +61,9 @@ class TypeAnalyzer {
       case TFunc(from, to) =>
         TFunc(from.map(t => replace(t, according)),
           replace(to, according))
+      case Generic(name, params) =>
+        val newParams = params.map(x => replace(x, according))
+        Generic(name, newParams)
     }
   }
 
@@ -38,7 +79,7 @@ class TypeAnalyzer {
       case t: Type => t
       case PolyType(vars, body) =>
         assert(body.isInstanceOf[Type], "expected a monotype but got a polytype")
-        val replaceMap = mutable.Map.empty[String, TVar]
+        val replaceMap = mutable.Map.empty[String, Type]
         vars.foreach(v => replaceMap.put(v, newTypeVariable()))
         replace(body, replaceMap)
     }
@@ -60,66 +101,99 @@ class TypeAnalyzer {
     }
   }
 
-  def unify(ta: Type, tb: Type): Type = {
-    if (ta == tb) return ta
-    unifyHelper(ta, tb, mutable.Set.empty)
-    val required = ta.instance
-    val found = tb.instance
-    if (required != found) {
-      reporter.error(new TypeMismatchError(found, required))
-    }
-    required
+  def unify(expected: Type, actual: Type, constraints: Constraint): Type = {
+    unify2(expected, actual, constraints)
   }
 
-  // TODO: fix here
-  def unifyHelper(ta: Type, tb: Type, instantiatedSet: mutable.Set[String]): Unit = {
-    // The [[Generic.equals]] method costs too much, thus we skip generic types
-    if (!ta.isInstanceOf[Generic] && !tb.isInstanceOf[Generic]
-      && !ta.isInstanceOf[TFunc] && !tb.isInstanceOf[TFunc]
-      && ta == tb) return
+  def unify2(expected: Type,
+             actual: Type,
+             constraints: Constraint): Type = {
+    (expected, actual) match {
+      case (ev: TVar, av: TVar) =>
+        if (ev.name == av.name) {
+          ev
+        }
+        // {e = x} + (e = a) => { e = x, a = x }
+        else if (constraints.contains(ev.name)) {
+          val ret = constraints(ev.name)
+          constraints.put(av.name, ret)
+          ret
+        }
+        // {a = x} + (e = a) => { a = x, e = x }
+        else if (constraints.contains(av.name)) {
+          val ret = constraints(av.name)
+          constraints.put(ev.name, ret)
+          ret
+        }
+        // {x = e} + (e = a) => { x = e, a = e }
+        else if (constraints.valueContains(ev.name)) {
+          constraints.put(av.name, ev)
+          ev
+        }
+        // {x = a} + (e = a) => { x = a, e = a }
+        else if (constraints.valueContains(av.name)) {
+          constraints.put(ev.name, av)
+          av
+        }
+        // {} + (e = a) => { e = a }
+        else {
+          constraints.put(ev.name, av)
+          av
+        }
 
-    (ta, tb) match {
-      case (av: TVar, bv: TVar) =>
-        if (instantiatedSet.contains(av.name)) {
-          bv.instance = av.instance
-          instantiatedSet.add(bv.name)
-        } else if (instantiatedSet.contains(bv.name)) {
-          av.instance = bv.instance
-          instantiatedSet.add(av.name)
+      case (ev: TVar, _) =>
+        val ret = replace(actual, constraints.internalMap)
+        constraints.put(ev.name, ret)
+        ret
+
+      case (_, av: TVar) =>
+        val ret = replace(expected, constraints.internalMap)
+        constraints.put(av.name, ret)
+        ret
+
+      case (expectedFunc@TFunc(expectedFrom, expectedTo), actualFunc@TFunc(actualFrom, actualTo)) =>
+        if (expectedFrom.length < actualFrom.length) {
+          throw new TooManyArguments(expectedFrom.length, actualFrom.length)
+        } else if (expectedFrom.length > actualFrom.length) {
+          unify2(expectedFunc.partialApply(actualFrom.length), actualFunc, constraints)
         } else {
-          av.instance = bv
-          instantiatedSet.add(av.name)
+          val unifiedParams = expectedFrom zip actualFrom map { case (exp, act) =>
+            try {
+              unify2(exp, act, constraints)
+            } catch {
+              case error: OccursCheckError =>
+                throw new TypeMismatchDueToOccursCheck(error.message, exp, act)
+            }
+          }
+          val ret = unify2(expectedTo, actualTo, constraints)
+          // Remember to replace
+          TFunc(unifiedParams.map(x => replace(x, constraints.internalMap)), ret)
         }
-      case (av: TVar, _) =>
-        av.instance = tb
-        instantiatedSet.add(av.name)
-      case (_, bv: TVar) =>
-        bv.instance = ta
-        instantiatedSet.add(bv.name)
-      case (TFunc(aFrom, aTo), TFunc(bFrom, bTo)) =>
-        aFrom zip bFrom foreach { case (a, b) =>
-          unifyHelper(a, b, instantiatedSet)
+
+      case (Generic(expectedName, expectedParams), Generic(actualName, actualParams)) =>
+        if (expectedName != actualName || expectedParams.length != actualParams.length) {
+          throw new TypeMismatchError(expected, actual)
         }
-        unifyHelper(aTo, bTo, instantiatedSet)
-      case (Generic(aName, aParams), Generic(bName, bParams)) =>
-        if (aName != bName || aParams.length != bParams.length) {
-          reporter.error(new TypeMismatchError(ta, tb.instance))
+        val unifiedParams = expectedParams zip actualParams map { case (expectedParamType, actualParamType) =>
+          unify2(expectedParamType, actualParamType, constraints)
         }
-        aParams zip bParams foreach { case (aParamType, bParamType) =>
-          unifyHelper(aParamType, bParamType, instantiatedSet)
-        }
+        Generic(expectedName, unifiedParams.map(x => replace(x, constraints.internalMap)))
+
       case _ =>
-        reporter.error(new TypeMismatchError(ta.instance, tb.instance))
+        if (expected != actual) {
+          throw new TypeMismatchError(expected, actual)
+        }
+        expected
     }
   }
 
-  def analyze(context: TypeContext, expr: Expr): Type = {
+  def analyze(context: TypeContext, expr: Expr, constraints: Constraint): Type = {
     expr match {
       // Boolean literal
-      case LitBool(v) => TBool
+      case _: LitBool => TBool
 
       // Int literal
-      case LitInt(v) => TInt
+      case _: LitInt => TInt
 
       // Variable
       case Var(name) =>
@@ -129,49 +203,31 @@ class TypeAnalyzer {
         }
 
       case If(condition, body, elseBody) =>
-        val conditionType = analyze(context, condition)
-        unify(conditionType, TBool)
-        val bodyType = analyze(context, body)
-        val elseType = analyze(context, elseBody)
-        unify(bodyType, elseType)
+        val conditionType = analyze(context, condition, constraints)
+        unify(TBool, conditionType, constraints)
+        val bodyType = analyze(context, body, constraints)
+        val elseType = analyze(context, elseBody, constraints)
+        unify(bodyType, elseType, constraints)
 
       // Function application
       case Apply(func, args) =>
-        val givenFuncTypeRaw = analyze(context, func)
-        // TODO report error
-        if (!givenFuncTypeRaw.isInstanceOf[TFunc]) throw new IsNotAFunction(func)
-
-        var givenFuncType = givenFuncTypeRaw.asInstanceOf[TFunc]
-        val requiredArgTypes = givenFuncType.from
-        if (requiredArgTypes.length < args.length) {
-          throw new TooManyArguments(requiredArgTypes.length, args.length)
-        } else if (requiredArgTypes.length > args.length) {
-          givenFuncType = givenFuncType.partialApply(args.length)
-        }
-
-        val givenArgsType = args.map(x => analyze(context, x))
+        val funcType = analyze(context, func, constraints)
+        val actualArgsType = args.map(x => analyze(context, x, constraints))
         val resultType = newTypeVariable()
-        try {
-          val a = unify(TFunc(givenArgsType, resultType), givenFuncType)
-          a.asInstanceOf[TFunc].to
-        } catch {
-          case e: OccursCheckError =>
-            throw new TypeMismatchDueToOccursCheck(e.message,
-              givenArgsType,
-              givenFuncType.from)
-        }
+        val a = unify(funcType, TFunc(actualArgsType, resultType), constraints)
+        a.asInstanceOf[TFunc].to
 
       // Lambda expression
       case Lambda(argName, body) =>
         val argType = newTypeVariable()
-        val retType = analyze(context + (argName -> argType), body)
-        TFunc(Array(argType), retType).instance
+        val retType = analyze(context + (argName -> argType), body, constraints)
+        TFunc(Array(constraints.getOrElse(argType.name, argType)), retType)
 
       // Let expression
       case Let(name, definition, body) =>
-        val definitionType = analyze(context, definition)
+        val definitionType = analyze(context, definition, constraints)
         val genDefinitionType = gen(context, definitionType)
-        analyze(context + (name -> genDefinitionType), body)
+        analyze(context + (name -> genDefinitionType), body, constraints)
 
       // Letrec expression
       case LetRec(bindings, body) =>
@@ -187,9 +243,10 @@ class TypeAnalyzer {
         // Unify each bindings
         val bindingNameAndTypes: Array[(String, Type)] =
           tempTypeVariables zip bindings map { case (tempTVar, (name, bindingExpr)) =>
-            val exprType = analyze(bindingAnalyzeContext, bindingExpr)
-            val tempType = tempTVar.instance // this line must follow the above line
-            (name, unify(tempType, exprType))
+            val exprType = analyze(bindingAnalyzeContext, bindingExpr, constraints)
+            val tempType = constraints.getOrElse(tempTVar.name, tempTVar)
+            val ret = (name, unify(tempType, exprType, constraints))
+            ret
           }
 
         // Generalize the expressions's types
@@ -197,7 +254,7 @@ class TypeAnalyzer {
         bindingNameAndTypes foreach { case (name, bindingExprType) =>
           bodyAnalyzeContext += (name -> gen(context, bindingExprType))
         }
-        analyze(bodyAnalyzeContext, body)
+        analyze(bodyAnalyzeContext, body, constraints)
     }
   }
 }
@@ -236,7 +293,17 @@ object AnalyzerTest extends App {
     Apply(Var("fix"), Array(Var("fix")))
   )
 
+  val e77 = LetRec(
+    Array(
+      ("fix",
+        Lambda("f",
+          Apply(Var("f"),
+            Array(Apply(Var("fix"), Array(Var("f")))))))),
+    Var("fix")
+  )
+
   val e8 = Apply(Var("pair"), Array(LitInt(1), LitInt(2)))
+  val e88 = Apply(Var("pair"), Array(LitInt(1)))
   val e9 = Apply(Var("test"), Array(LitBool(true)))
 
   val e10 = LetRec(
@@ -249,6 +316,14 @@ object AnalyzerTest extends App {
 
   val analyzer = new TypeAnalyzer
   val preContext = new TypeContext(prelude)
-  val t = analyzer.analyze(preContext, Apply(Var("pair"), Array(LitBool(true))))
-  println(t)
+  val t0 = analyzer.analyze(preContext, e77, new Constraint)
+  println(t0)
+
+  val t1 = analyzer.analyze(preContext, e88, new Constraint)
+  println(t1)
+
+  val t2 = analyzer.analyze(preContext, e7, new Constraint)
+  println(t2)
+
+  Map.empty
 }

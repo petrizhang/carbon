@@ -6,70 +6,36 @@ sealed trait Scheme {
   val freeTypeVariables: Set[String]
 }
 
-sealed trait Type extends Scheme {
-  def instance: Type
-}
+sealed trait Type extends Scheme
+
 
 case object TUnit extends Type {
-  override def instance: Type = TUnit
-
   lazy val freeTypeVariables: Set[String] = Set.empty
 
   override def toString: String = "Unit"
 }
 
 case object TBool extends Type {
-  override def instance: Type = TBool
-
   lazy val freeTypeVariables: Set[String] = Set.empty
 
   override def toString: String = "Boolean"
 }
 
 case object TInt extends Type {
-  override def instance: Type = TInt
-
   lazy val freeTypeVariables: Set[String] = Set.empty
 
   override def toString: String = "Int"
 }
 
 case class TVar(name: String) extends Type {
-  private var _instance: Type = this
-
-  override def instance: Type = _instance match {
-    case tv: TVar => if (tv == this) this else tv.instance
-    case _ => _instance.instance
-  }
-
-
-  def instance_=(value: Type): Unit = {
-    if (occurs(name, value)) throw new OccursCheckError(this.instance, value.instance)
-    _instance = value
-  }
-
   lazy val freeTypeVariables: Set[String] = Set(name)
 
   override def toString: String = s"$name"
-
-  private def occurs(name: String, right: Type): Boolean = {
-    right match {
-      case TBool => false
-      case TInt => false
-      case tv: TVar => tv.name == name
-      case TFunc(from, to) =>
-        from.exists(t => occurs(name, t)) || occurs(name, to)
-      case Generic(name, params) =>
-        params.exists(p => occurs(name, p))
-    }
-  }
 }
 
 // TODO: check currying situations carefully
 // e.g. TFunc(["a","b"], ["c","d"] -> "f") should be ["a","b","c","d"] -> "f"
 case class TFunc(from: Array[Type], to: Type) extends Type {
-  override def instance: Type = TFunc(from.map(_.instance), to.instance)
-
   lazy val freeTypeVariables: Set[String] = from.flatMap(_.freeTypeVariables).toSet ++ to.freeTypeVariables
 
   def partialApply(n: Int): TFunc = {
@@ -107,8 +73,6 @@ object TFunc {
 }
 
 case class Generic(name: String, params: Array[Type]) extends Type {
-  override def instance: Type = Generic(name, params.map(_.instance))
-
   override lazy val freeTypeVariables: Set[String] = params.flatMap(_.freeTypeVariables).toSet
 
   override def toString: String = s"""$name ${params.mkString(" ")}"""
