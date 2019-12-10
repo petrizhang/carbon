@@ -324,6 +324,4 @@ object AnalyzerTest extends App {
 
   val t2 = analyzer.analyze(preContext, e7, new Constraint)
   println(t2)
-
-  Map.empty
 }
