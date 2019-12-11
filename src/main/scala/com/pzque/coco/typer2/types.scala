@@ -42,19 +42,6 @@ object types {
     }
   }
 
-  implicit def setImplTypes[T: Types]: Types[Set[T]] = new Types[Set[T]] {
-    final def applySubst(subst: Subst, t: Set[T]): Set[T] = {
-      val impl = implicitly[Types[T]]
-      t.map(x => impl.applySubst(subst, x))
-    }
-
-    final def typeVariables(t: Set[T]): Set[String] = {
-      val impl = implicitly[Types[T]]
-      t.flatMap(x => impl.typeVariables(x))
-    }
-  }
-
-
   implicit val predImplTypes: Types[Pred] = new Types[Pred] {
     override def applySubst(subst: Subst, pred: Pred): Pred = {
       Pred(pred.id, typeImplTypes.applySubst(subst, pred.body))
