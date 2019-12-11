@@ -8,26 +8,7 @@ sealed trait Scheme {
 
 sealed trait Type extends Scheme
 
-
-case object TUnit extends Type {
-  lazy val freeTypeVariables: Set[String] = Set.empty
-
-  override def toString: String = "Unit"
-}
-
-case object TBool extends Type {
-  lazy val freeTypeVariables: Set[String] = Set.empty
-
-  override def toString: String = "Boolean"
-}
-
-case object TInt extends Type {
-  lazy val freeTypeVariables: Set[String] = Set.empty
-
-  override def toString: String = "Int"
-}
-
-case class TVar(name: String) extends Type {
+case class TypeVariable(name: String) extends Type {
   lazy val freeTypeVariables: Set[String] = Set(name)
 
   override def toString: String = s"$name"
@@ -35,50 +16,61 @@ case class TVar(name: String) extends Type {
 
 // TODO: check currying situations carefully
 // e.g. TFunc(["a","b"], ["c","d"] -> "f") should be ["a","b","c","d"] -> "f"
-case class TFunc(from: Array[Type], to: Type) extends Type {
+case class FunctionType(from: Array[Type], to: Type) extends Type {
   lazy val freeTypeVariables: Set[String] = from.flatMap(_.freeTypeVariables).toSet ++ to.freeTypeVariables
 
-  def partialApply(n: Int): TFunc = {
+  def partialApply(n: Int): FunctionType = {
     val heads = from.view.slice(0, n)
     val tail = from.view.slice(n, from.length)
 
     val newTo = to match {
-      case TFunc(fargs, fto) =>
-        TFunc((tail ++ fargs).toArray, fto)
-      case _ => TFunc(tail.toArray, to)
+      case FunctionType(fargs, fto) =>
+        FunctionType((tail ++ fargs).toArray, fto)
+      case _ => FunctionType(tail.toArray, to)
     }
-    TFunc(heads.toArray[Type], newTo)
+    FunctionType(heads.toArray[Type], newTo)
   }
 
   override def toString: String = {
-    val fromString = TFunc.formatArgTypes(from)
+    val fromString = FunctionType.formatArgTypes(from)
     s"$fromString$to"
   }
 
   // TODO: optimize here
   override def equals(obj: Any): Boolean = {
-    obj.isInstanceOf[TFunc] && obj.toString == toString
+    obj.isInstanceOf[FunctionType] && obj.toString == toString
   }
 }
 
-object TFunc {
+object FunctionType {
   def formatArgTypes(argTypes: Array[Type]): String = {
     val builder = new mutable.StringBuilder
     argTypes foreach { t =>
-      val repr = if (t.isInstanceOf[TFunc]) s"($t) -> " else s"$t -> "
+      val repr = if (t.isInstanceOf[FunctionType]) s"($t) -> " else s"$t -> "
       builder.append(repr)
     }
     builder.toString()
   }
 }
 
-case class Generic(name: String, params: Array[Type]) extends Type {
+/**
+  * Higher-order type operator.
+  * e.g.
+  * Pair a b
+  * Cons a (List a)
+  *
+  * @param name   kind name
+  * @param params type parameters
+  */
+case class Kind(name: String, params: Array[Type]) extends Type {
   override lazy val freeTypeVariables: Set[String] = params.flatMap(_.freeTypeVariables).toSet
 
-  override def toString: String = s"""$name ${params.mkString(" ")}"""
+  override def toString: String = {
+    if (params.isEmpty) name else s"""$name ${params.mkString(" ")}"""
+  }
 
   override def equals(obj: Any): Boolean = {
-    obj.isInstanceOf[Generic] && obj.toString == toString
+    obj.isInstanceOf[Kind] && obj.toString == toString
   }
 }
 
@@ -95,8 +87,8 @@ case class Generic(name: String, params: Array[Type]) extends Type {
   * Here `f f` means apply a function of type `T1 -> T1` to a parameter of type `T2 -> T2`.
   * Rather than apply a `T -> T` function to a `T -> T` type, which is obviously an error.
   *
-  * @param vars
-  * @param body
+  * @param vars type parameters(name of type variables)
+  * @param body actual type
   */
 case class PolyType(vars: Array[String], body: Type) extends Scheme {
   lazy val freeTypeVariables: Set[String] = body.freeTypeVariables -- vars
@@ -104,3 +96,8 @@ case class PolyType(vars: Array[String], body: Type) extends Scheme {
   override def toString: String = vars.mkString("$", ".$", s" => ${body.toString}")
 }
 
+object TypeSystem {
+  val TBoolean: Kind = Kind("Boolean", Array())
+  val TInt: Kind = Kind("Int", Array())
+  val TUnit: Kind = Kind("Unit", Array())
+}

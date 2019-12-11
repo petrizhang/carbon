@@ -1,7 +1,7 @@
 package com.pzque.coco.typer
 
 sealed abstract class Expr {
-  var tpe: Type = TVar("?")
+  var tpe: Type = TypeVariable("?")
 }
 
 case class LitBool(value: Boolean) extends Expr {
