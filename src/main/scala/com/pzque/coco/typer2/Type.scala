@@ -3,51 +3,18 @@ package com.pzque.coco.typer2
 import substitution.Subst
 import prelude._
 
-trait TApFormatter {
-  def format(f: TCon, arg: Type): String
-
-  def formatEnd(formatted: String): String
-}
-
-object formatters {
-  val funcFormatter: TApFormatter = new TApFormatter {
-    override def format(f: TCon, arg: Type): String = s"$arg ->"
-
-    override def formatEnd(formatted: String): String = formatted
-  }
-
-  val normalFormatter: TApFormatter = new TApFormatter {
-    override def format(f: TCon, arg: Type): String = s"$f $arg"
-
-    override def formatEnd(formatted: String): String = formatted
-  }
-
-  val listFormatter: TApFormatter = new TApFormatter {
-    override def format(f: TCon, arg: Type): String = arg.toString
-
-    override def formatEnd(formatted: String): String = s"[$formatted]"
-  }
-
-  val tupleFormatter: TApFormatter = new TApFormatter {
-    override def format(f: TCon, arg: Type): String = s"$arg,"
-
-    override def formatEnd(formatted: String): String = s"($formatted)"
-  }
-}
-
 sealed trait Type {
   def kind: Kind
 
   // Construct a function type
-  // must be used as a >> (b >> (c >> ...)) !!!
-  def >>(to: Type): Type = TAp(TAp(tArrow, this), to)
+  def ->:(from: Type): Type = TAp(TAp(tArrow, from), this)
 
   // Apply a type with a argument `arg`
   def <<(arg: Type): Type = TAp(this, arg)
 }
 
-case class TVar(id: String, body: Kind) extends Type {
-  override lazy val kind: Kind = body
+case class TVar(id: String) extends Type {
+  override lazy val kind: Kind = Star
 
   def +->(t: Type): Subst = Map(this -> t)
 
@@ -72,6 +39,13 @@ case class TCon(id: String, body: Kind) extends Type {
 
 case class TAp(f: Type, arg: Type) extends Type {
 
+  lazy val isFunction: Boolean = {
+    f match {
+      case TAp(con, _) if con == prelude.tArrow => true
+      case _ => false
+    }
+  }
+
   override lazy val kind: Kind = {
     f.kind match {
       case KFun(_, k) => k
@@ -81,7 +55,7 @@ case class TAp(f: Type, arg: Type) extends Type {
 
   override lazy val toString: String = {
     f match {
-      case con: TCon => con.formatter.formatEnd(con.formatter.format(con, arg))
+      case TAp(con: TCon, _) => con.formatter.format(this)
       case _ => s"$f $arg"
     }
   }

@@ -1,8 +1,14 @@
 package com.pzque.coco.typer2
 
 sealed trait Kind {
-  // must be used as a ~> (b ~> (c ~> ...)) !!!
-  def ~>(to: Kind): Kind = KFun(this, to)
+  /**
+    * A right associative operator to construct a [[KFun]] instance.
+    * a ~>: b ~>: c = c.~>:(b).~>:(a) = KFun(a, KFun(b,c))
+    *
+    * @param from
+    * @return
+    */
+  def ~>:(from: Kind): Kind = KFun(from, this)
 }
 
 case object Star extends Kind {

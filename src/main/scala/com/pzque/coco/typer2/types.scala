@@ -15,8 +15,10 @@ object types {
     override def applySubst(subst: Subst, t: Type): Type = {
       t match {
         case tv: TVar => subst.getOrElse(tv, t)
-        case TAp(f, arg) => TAp(applySubst(subst, f),
-          applySubst(subst, arg))
+        case TAp(f, arg) => TAp(
+          applySubst(subst, f),
+          applySubst(subst, arg)
+        )
         case _ => t
       }
     }
