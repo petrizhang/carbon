@@ -1,8 +1,9 @@
 package com.pzque.coco.typer2
 
-import com.pzque.coco.typer2.typeclass.Pred
+import typeclass.Pred
 import substitution._
 import types._
+import implicits._
 
 object unify {
 

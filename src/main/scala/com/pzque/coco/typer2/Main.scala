@@ -4,6 +4,7 @@ import prelude._
 import unify._
 import typeclass._
 import types._
+import implicits._
 
 object Main extends App {
   def test1(): Unit = {
@@ -39,18 +40,31 @@ object Main extends App {
   }
 
   def test3(): Unit = {
-    val a: Class = (
-      List("Eq"),
-      List(
+    val a: Class = Class(
+      ab("Eq"),
+      ab(
         List() :=> ("Ord" $ tUnit),
         List() :=> ("Ord" $ tChar),
         List() :=> ("Ord" $ tInt),
-        List("Ord" $ tUnit, "Ord" $ tUnit) :=>
+        List("Ord" $ "a", "Ord" $ "b") :=>
           ("Ord" $ pair("a", "b"))
       )
     )
     println(a)
   }
 
-  test3()
+  def test4(): Unit = {
+    val env = new ClassEnv
+    env.addClass("Eq", ab)
+      .addClass("Ord", ab("Eq"))
+      .addClass("Show", ab)
+      .addClass("Read", ab)
+      .addClass("Bounded", ab)
+      .addClass("Enum", ab)
+      .addClass("Functor", ab)
+      .addClass("Monad", ab)
+    println(env)
+  }
+
+  test4()
 }

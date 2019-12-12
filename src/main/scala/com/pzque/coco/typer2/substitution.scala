@@ -7,15 +7,7 @@ object substitution {
 
   val nullSubst: Subst = Map.empty[TVar, Type]
 
-  implicit class SubstCompose(s1: Subst) {
-    // applySubst (s1 @@ s2) = applySubst s1 . applySubst s2
-    def @@(s2: Subst): Subst = {
-      val ret = s2.map { case (key, value) =>
-        (key, typeImplTypes.applySubst(s1, value))
-      }
-      s1 ++ ret
-    }
-  }
+
 
   /*
     merge      :: Monad m => Subst -> Subst -> m Subst

@@ -2,6 +2,7 @@ package com.pzque.coco.typer2
 
 import substitution._
 import typeclass._
+import implicits._
 
 object types {
 
@@ -49,12 +50,12 @@ object types {
   implicit def qualImplTypes[T: Types]: Types[Qual[T]] = new Types[Qual[T]] {
     override def applySubst(subst: Subst, qual: Qual[T]): Qual[T] = {
       val tImpl = implicitly[Types[T]]
-      listImplTypes[Pred].applySubst(subst, qual.context) :=> tImpl.applySubst(subst, qual.body)
+      listImplTypes[Pred].applySubst(subst, qual.context) :=> tImpl.applySubst(subst, qual.pred)
     }
 
     override def typeVariables(t: Qual[T]): Set[String] = {
       val impl = implicitly[Types[T]]
-      listImplTypes[Pred].typeVariables(t.context) ++ impl.typeVariables(t.body)
+      listImplTypes[Pred].typeVariables(t.context) ++ impl.typeVariables(t.pred)
     }
   }
 }

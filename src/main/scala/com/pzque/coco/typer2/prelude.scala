@@ -1,7 +1,6 @@
 package com.pzque.coco.typer2
 
 object prelude {
-  implicit def stringToTVar(id: String): Type = TVar(id)
 
   val tUnit: Type = TCon("Unit", Star)
   val tChar: Type = TCon("Char", Star)
