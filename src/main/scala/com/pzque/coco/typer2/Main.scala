@@ -63,6 +63,14 @@ object Main extends App {
       .addClass("Enum", ab)
       .addClass("Functor", ab)
       .addClass("Monad", ab)
+
+    env.addInstance(List() :=> ("Ord" $ tUnit))
+      .addInstance(List() :=> ("Ord" $ tChar))
+      .addInstance(List() :=> ("Ord" $ tInt))
+      .addInstance(List("Ord" $ "a", "Ord" $ "b") :=>
+        ("Ord" $ pair("a", "b")))
+
+    println(env.getClass("Ord"))
     println(env)
   }
 
