@@ -23,13 +23,7 @@ object types {
       }
     }
 
-    override def typeVariables(t: Type): Set[String] = {
-      t match {
-        case TVar(id, _) => Set(id)
-        case TAp(f, args) => typeVariables(f) ++ typeVariables(args)
-        case _ => Set.empty[String]
-      }
-    }
+    override def typeVariables(t: Type): Set[String] = t.typeVariables
   }
 
   implicit def listImplTypes[T: Types]: Types[List[T]] = new Types[List[T]] {

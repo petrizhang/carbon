@@ -6,6 +6,8 @@ import prelude._
 sealed trait Type {
   def kind: Kind
 
+  def typeVariables: Set[String]
+
   // Construct a function type
   def ->:(from: Type): Type = TAp(TAp(tArrow, from), this)
 
@@ -16,10 +18,11 @@ sealed trait Type {
 case class TVar(id: String) extends Type {
   override lazy val kind: Kind = Star
 
+  override def typeVariables: Set[String] = Set(id)
+
   def +->(t: Type): Subst = Map(this -> t)
 
   override lazy val toString: String = id
-
 }
 
 case class TCon(id: String, body: Kind) extends Type {
@@ -34,14 +37,16 @@ case class TCon(id: String, body: Kind) extends Type {
 
   override lazy val kind: Kind = body
 
+  override def typeVariables: Set[String] = Set.empty[String]
+
   override lazy val toString: String = id
 }
 
 case class TAp(f: Type, arg: Type) extends Type {
-
   lazy val isFunction: Boolean = {
     f match {
       case TAp(con, _) if con == prelude.tArrow => true
+      // TODO check if f could only be TCon
       case _ => false
     }
   }
@@ -53,6 +58,8 @@ case class TAp(f: Type, arg: Type) extends Type {
     }
   }
 
+  override def typeVariables: Set[String] = f.typeVariables ++ arg.typeVariables
+
   override lazy val toString: String = {
     f match {
       case TAp(con: TCon, _) => con.formatter.format(this)
@@ -63,5 +70,7 @@ case class TAp(f: Type, arg: Type) extends Type {
 
 case class TGen(value: Int) extends Type {
   def kind: Kind = ???
+
+  override def typeVariables: Set[String] = ???
 }
 
