@@ -63,6 +63,7 @@ case class TAp(f: Type, arg: Type) extends Type {
   override lazy val toString: String = {
     f match {
       case TAp(con: TCon, _) => con.formatter.format(this)
+      case con: TCon => con.formatter.format(this)
       case _ => s"$f $arg"
     }
   }

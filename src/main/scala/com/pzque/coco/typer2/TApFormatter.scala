@@ -12,7 +12,7 @@ object formatters {
 
   val normalFormatter: TApFormatter = (ap: TAp) => s"${ap.f} ${ap.arg}"
 
-  val listFormatter: TApFormatter = (ap: TAp) => s"[ap.arg.toString]"
+  val listFormatter: TApFormatter = (ap: TAp) => s"[${ap.arg.toString}]"
 
   val pairFormatter: TApFormatter = {
     case TAp(TAp(_, from), to) => s"($from, $to)"

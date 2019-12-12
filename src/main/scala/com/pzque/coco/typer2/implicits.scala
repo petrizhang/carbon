@@ -1,7 +1,7 @@
 package com.pzque.coco.typer2
 
 import com.pzque.coco.typer2.substitution.Subst
-import com.pzque.coco.typer2.typeclass.{Pred, Qual}
+import com.pzque.coco.typer2.typeclass.{IsInst, Qual}
 import com.pzque.coco.typer2.types.{Types, typeImplTypes}
 
 import scala.collection.mutable.ArrayBuffer
@@ -24,10 +24,10 @@ object implicits {
   }
 
   implicit class StringPred(id: String) {
-    def $(t: Type): Pred = Pred(id, t)
+    def $(t: Type): IsInst = IsInst(id, t)
   }
 
-  implicit class PredListToQual(list: List[Pred]) {
+  implicit class PredListToQual(list: List[IsInst]) {
     def :=>[T: Types](body: T): Qual[T] = Qual(list, body)
   }
 

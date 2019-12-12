@@ -53,12 +53,6 @@ class ClassEnv {
     this
   }
 
-  final def overlap(p1: Pred, p2: Pred): Boolean = {
-    try {
-      mguPred(p1, p2)
-      true
-    } catch {
-      case _: Error => false
-    }
-  }
+  final def overlap(p1: IsInst, p2: IsInst): Boolean = mguPred(p1, p2).isSuccess
+
 }

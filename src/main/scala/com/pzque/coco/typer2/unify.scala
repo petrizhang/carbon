@@ -1,9 +1,11 @@
 package com.pzque.coco.typer2
 
-import typeclass.Pred
+import typeclass.IsInst
 import substitution._
 import types._
 import implicits._
+
+import scala.util.{Failure, Success, Try}
 
 object unify {
 
@@ -15,31 +17,30 @@ object unify {
     * @param expected
     * @return
     */
-  final def mgu(actual: Type, expected: Type): Subst = {
+  final def mgu(actual: Type, expected: Type): Try[Subst] = {
     (actual, expected) match {
       case (TAp(f1, arg1), TAp(f2, arg2)) =>
-        val s1 = mgu(f1, f2)
-        val s2 = mgu(
-          typeImplTypes.applySubst(s1, arg1),
-          typeImplTypes.applySubst(s1, arg2)
-        )
-        s2 @@ s1
+        for (s1 <- mgu(f1, f2);
+             s2 <- mgu(
+               typeImplTypes.applySubst(s1, arg1),
+               typeImplTypes.applySubst(s1, arg2)
+             )) yield s2 @@ s1
       case (tv: TVar, t) => varBind(tv, t)
       case (t, tv: TVar) => varBind(tv, t)
-      case (u: TCon, t: TCon) if t == u => nullSubst
-      case _ => throw new Error("types do not unify")
+      case (u: TCon, t: TCon) if t == u => Success(nullSubst)
+      case _ => Failure(new Error("types do not unify"))
     }
   }
 
-  final def varBind(u: TVar, t: Type): Subst = {
+  final def varBind(u: TVar, t: Type): Try[Subst] = {
     if (u == t) {
-      nullSubst
+      Success(nullSubst)
     } else if (typeImplTypes.typeVariables(t).contains(u.id)) {
-      throw new Error("occurs check fails")
+      Failure(new Error("occurs check fails"))
     } else if (u.kind != t.kind) {
-      throw new Error("kinds do not match")
+      Failure(new Error("kinds do not match"))
     } else {
-      u +-> t
+      Success(u +-> t)
     }
   }
 
@@ -51,17 +52,18 @@ object unify {
     * @param expected
     * @return
     **/
-  final def matching(actual: Type, expected: Type): Subst = {
+  final def matching(actual: Type, expected: Type): Try[Subst] = {
     (actual, expected) match {
       case (TAp(f1, arg1), TAp(f2, arg2)) =>
-        val s1 = matching(f1, f2)
-        val s2 = matching(arg1, arg2)
-        merge(s1, s2)
+        for (s1 <- matching(f1, f2);
+             s2 <- matching(arg1, arg2);
+             ret <- merge(s1, s2))
+          yield ret
       case (u: TVar, t) if u.kind == t.kind =>
-        u +-> t
+        Success(u +-> t)
       case (tc1: TCon, tc2: TCon) if tc1 == tc2 =>
-        nullSubst
-      case _ => throw new Error("types do not match")
+        Success(nullSubst)
+      case _ => Failure(new Error("types do not match"))
     }
   }
 
@@ -75,13 +77,13 @@ object unify {
            | otherwise = fail "classes differ"
    */
 
-  final def mguPred(actual: Pred, expected: Pred): Subst = {
-    if (actual.id != expected.id) throw new Error("classes differ")
-    mgu(actual.body, expected.body)
+  final def mguPred(actual: IsInst, expected: IsInst): Try[Subst] = {
+    if (actual.id != expected.id) Failure(new Error("classes differ"))
+    mgu(actual.target, expected.target)
   }
 
-  final def matchingPred(actual: Pred, expected: Pred): Subst = {
-    if (actual.id != expected.id) throw new Error("classes differ")
-    matching(actual.body, expected.body)
+  final def matchingPred(actual: IsInst, expected: IsInst): Try[Subst] = {
+    if (actual.id != expected.id) Failure(new Error("classes differ"))
+    matching(actual.target, expected.target)
   }
 }
