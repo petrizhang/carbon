@@ -1,5 +1,6 @@
 package com.pzque.coco.typer2
 
+import com.pzque.coco.typer2.typeclass.Pred
 import substitution._
 import types._
 
@@ -61,5 +62,25 @@ object unify {
         nullSubst
       case _ => throw new Error("types do not match")
     }
+  }
+
+  /*
+  mguPred, matchPred :: Pred -> Pred -> Maybe Subst
+  mguPred             = lift mgu
+  matchPred           = lift match
+  
+  lift m (IsIn i t) (IsIn i' t')
+           | i == i'   = m t t'
+           | otherwise = fail "classes differ"
+   */
+
+  final def mguPred(actual: Pred, expected: Pred): Subst = {
+    if (actual.id != expected.id) throw new Error("classes differ")
+    mgu(actual.body, expected.body)
+  }
+
+  final def matchingPred(actual: Pred, expected: Pred): Subst = {
+    if (actual.id != expected.id) throw new Error("classes differ")
+    matching(actual.body, expected.body)
   }
 }

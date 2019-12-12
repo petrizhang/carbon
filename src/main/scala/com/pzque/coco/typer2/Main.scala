@@ -38,5 +38,19 @@ object Main extends App {
     println(p)
   }
 
-  test2()
+  def test3(): Unit = {
+    val a: Class = (
+      List("Eq"),
+      List(
+        List() :=> ("Ord" $ tUnit),
+        List() :=> ("Ord" $ tChar),
+        List() :=> ("Ord" $ tInt),
+        List("Ord" $ tUnit, "Ord" $ tUnit) :=>
+          ("Ord" $ pair("a", "b"))
+      )
+    )
+    println(a)
+  }
+
+  test3()
 }

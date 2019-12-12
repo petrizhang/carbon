@@ -4,7 +4,11 @@ import com.pzque.coco.typer2.types.Types
 
 object typeclass {
 
-  implicit class predListToQual(list: List[Pred]) {
+  implicit class StringPred(id: String) {
+    def $(t: Type): Pred = Pred(id, t)
+  }
+
+  implicit class PredListToQual(list: List[Pred]) {
     def :=>[T: Types](body: T): Qual[T] = Qual(list, body)
   }
 
@@ -17,5 +21,8 @@ object typeclass {
       s"""${context.mkString("(", ", ", ")")} => $body"""
     }
   }
+
+  type Inst = Qual[Pred]
+  type Class = (List[String], List[Inst])
 
 }
