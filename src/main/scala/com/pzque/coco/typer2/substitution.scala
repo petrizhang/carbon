@@ -2,7 +2,7 @@ package com.pzque.coco.typer2
 
 import types._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object substitution {
   type Subst = Map[TVar, Type]
@@ -15,9 +15,9 @@ object substitution {
     where agree = all (\v -> apply s1 (TVar v) == apply s2 (TVar v))
                       (map fst s1 `intersect` map fst s2)
    */
-  final def merge(s1: Subst, s2: Subst): Try[Subst] = Try {
-    if (agree(s1, s2)) s1 ++ s1
-    else throw new Error("merge fails")
+  final def merge(s1: Subst, s2: Subst): Try[Subst] = {
+    if (agree(s1, s2)) Success(s2 ++ s1)
+    else Failure(new Error("merge fails"))
   }
 
   final def agree(s1: Subst, s2: Subst): Boolean = {

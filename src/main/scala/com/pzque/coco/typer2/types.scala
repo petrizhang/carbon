@@ -39,23 +39,23 @@ object types {
     }
   }
 
-  implicit val predImplTypes: Types[IsInst] = new Types[IsInst] {
-    override def applySubst(subst: Subst, pred: IsInst): IsInst = {
-      IsInst(pred.id, typeImplTypes.applySubst(subst, pred.target))
+  implicit val predImplTypes: Types[Pred] = new Types[Pred] {
+    override def applySubst(subst: Subst, pred: Pred): Pred = {
+      Pred(pred.id, typeImplTypes.applySubst(subst, pred.target))
     }
 
-    override def typeVariables(t: IsInst): Set[String] = typeImplTypes.typeVariables(t.target)
+    override def typeVariables(t: Pred): Set[String] = typeImplTypes.typeVariables(t.target)
   }
 
   implicit def qualImplTypes[T: Types]: Types[Qual[T]] = new Types[Qual[T]] {
     override def applySubst(subst: Subst, qual: Qual[T]): Qual[T] = {
       val tImpl = implicitly[Types[T]]
-      listImplTypes[IsInst].applySubst(subst, qual.context) :=> tImpl.applySubst(subst, qual.pred)
+      listImplTypes[Pred].applySubst(subst, qual.bases) :=> tImpl.applySubst(subst, qual.pred)
     }
 
     override def typeVariables(t: Qual[T]): Set[String] = {
       val impl = implicitly[Types[T]]
-      listImplTypes[IsInst].typeVariables(t.context) ++ impl.typeVariables(t.pred)
+      listImplTypes[Pred].typeVariables(t.bases) ++ impl.typeVariables(t.pred)
     }
   }
 }

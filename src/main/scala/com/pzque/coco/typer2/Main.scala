@@ -5,7 +5,6 @@ import unify._
 import typeclass._
 import types._
 import implicits._
-import entailment._
 
 object Main extends App {
   def test1(): Unit = {
@@ -39,7 +38,7 @@ object Main extends App {
     val q = (tChar ->: tInt) ->: "b" ->: "a"
     println(q.typeVariables)
 
-    val p = List(IsInst("Num", "a"), IsInst("Num", "b")) :=> ("a" ->: tInt)
+    val p = List(Pred("Num", "a"), Pred("Num", "b")) :=> ("a" ->: tInt)
     println(p)
   }
 
@@ -57,28 +56,33 @@ object Main extends App {
     println(a)
   }
 
+  val env = new ClassEnv
+  env.addClass("Eq", ab)
+    .addClass("Ord", ab("Eq"))
+    .addClass("Show", ab)
+    .addClass("Read", ab)
+    .addClass("Bounded", ab)
+    .addClass("Enum", ab)
+    .addClass("Functor", ab)
+    .addClass("Monad", ab)
+
+  env.addInstance(List() :=> ("Ord" $ tUnit))
+    .addInstance(List() :=> ("Ord" $ tChar))
+    .addInstance(List() :=> ("Ord" $ tInt))
+    .addInstance(List("Ord" $ "a", "Ord" $ "b") :=>
+      ("Ord" $ pair("a", "b")))
+
   def test4(): Unit = {
-    val env = new ClassEnv
-    env.addClass("Eq", ab)
-      .addClass("Ord", ab("Eq"))
-      .addClass("Show", ab)
-      .addClass("Read", ab)
-      .addClass("Bounded", ab)
-      .addClass("Enum", ab)
-      .addClass("Functor", ab)
-      .addClass("Monad", ab)
-
-    env.addInstance(List() :=> ("Ord" $ tUnit))
-      .addInstance(List() :=> ("Ord" $ tChar))
-      .addInstance(List() :=> ("Ord" $ tInt))
-      .addInstance(List("Ord" $ "a", "Ord" $ "b") :=>
-        ("Ord" $ pair("a", "b")))
-
     println(bySuper(env, "Ord" $ "a"))
+    println(byInst(env, "Ord" $ pair("a", "b")))
+    // assert(!entail(env, List("Ord" $ "a"), "Ord" $ pair("a", "b")))
+    assert(entail(env, List("Ord" $ tInt), "Ord" $ pair(tInt, tInt)))
   }
 
-  test1()
-  test2()
-  test3()
+  def test5(): Unit = {
+    val a = matchingPred("Ord" $ pair("a", "b"), "Ord" $ pair(tInt, tInt))
+    println(a)
+  }
+
   test4()
 }

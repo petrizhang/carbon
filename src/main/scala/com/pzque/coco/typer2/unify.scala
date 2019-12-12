@@ -1,6 +1,6 @@
 package com.pzque.coco.typer2
 
-import typeclass.IsInst
+import typeclass.Pred
 import substitution._
 import types._
 import implicits._
@@ -77,12 +77,12 @@ object unify {
            | otherwise = fail "classes differ"
    */
 
-  final def mguPred(actual: IsInst, expected: IsInst): Try[Subst] = {
+  final def mguPred(actual: Pred, expected: Pred): Try[Subst] = {
     if (actual.id != expected.id) Failure(new Error("classes differ"))
     mgu(actual.target, expected.target)
   }
 
-  final def matchingPred(actual: IsInst, expected: IsInst): Try[Subst] = {
+  final def matchingPred(actual: Pred, expected: Pred): Try[Subst] = {
     if (actual.id != expected.id) Failure(new Error("classes differ"))
     matching(actual.target, expected.target)
   }

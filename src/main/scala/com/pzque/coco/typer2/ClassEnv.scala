@@ -6,6 +6,11 @@ import unify.mguPred
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+/**
+  * Environment that saves information of all typeclasses.
+  * This is a OO-style data structure rather than a functional-style one,
+  * thus we do not use the [[scala.util.Try]] monad here.
+  */
 class ClassEnv {
   private val _classes: mutable.Map[String, Class] = mutable.Map.empty
   private val _defaults: ArrayBuffer[Type] = ArrayBuffer.empty
@@ -53,6 +58,6 @@ class ClassEnv {
     this
   }
 
-  final def overlap(p1: IsInst, p2: IsInst): Boolean = mguPred(p1, p2).isSuccess
+  final def overlap(p1: Pred, p2: Pred): Boolean = mguPred(p1, p2).isSuccess
 
 }
