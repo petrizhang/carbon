@@ -13,4 +13,4 @@ Up to now, I have implemented a type inferencer for the Hindley–Milner (HM) ty
 
 The complete type system outlined in [Typing in Haskell](https://web.cecs.pdx.edu/~mpj/thih/thih.pdf) is still under development in the mid-stage (located at [typer2](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer2)).
 
-I will resume the development of this project when I have enough time
+I will resume the development when I have enough time
