@@ -3,11 +3,11 @@
 </div>
 
 # Coco
-A purely functional and strongly typed programming language running on JVM with Scala.
+A purely functional and strongly typed programming language running on JVM.
 
 ## Development Status
 
-The goal of this project is to implement Haskell's core features (in particular, the type system)  on JVM.
+The goal of this project is to implement Haskell's core features (in particular, the type system)  on JVM with Scala.
 
 Up to now, I have implemented a type inferencer for the [Hindley–Milner (HM)](https://en.m.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system) type system (located at [typer](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer)), which is the basis of Haskell's typing.
 
