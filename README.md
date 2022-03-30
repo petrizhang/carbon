@@ -9,8 +9,8 @@ A purely functional and strongly typed programming language running on JVM.
 
 The goal of this project is to implement Haskell's core features (in particular, the type system)  on JVM.
 
-Up to now, I have implemented a type inferencer for the Hindley–Milner (HM) type system at ![typer](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer), which is the basis of Haskell's type system.
+Up to now, I have implemented a type inferencer for the Hindley–Milner (HM) type system at [typer](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer), which is the basis of Haskell's type system.
 
-The complete type system outlined in ![Typing in Haskell](https://web.cecs.pdx.edu/~mpj/thih/thih.pdf) is still under development in the mid-stage, at ![typer2](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer2).
+The complete type system outlined in [Typing in Haskell](https://web.cecs.pdx.edu/~mpj/thih/thih.pdf) is still under development in the mid-stage, at [typer2](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer2).
 
 I will resume the development of this project when I have enough time
