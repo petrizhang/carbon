@@ -5,56 +5,12 @@
 # Coco
 A purely functional and strongly typed programming language running on JVM.
 
-## Getting Stared
+## Development Status
 
-### Basic Value Types
-```haskell
-a :: Boolean
-a = true
+The goal of this project is to implement Haskell's core features (in particular, the type system)  on JVM.
 
-b :: Int
-b = 1
+Up to now, I have implemented a type inferencer for the Hindley–Milner (HM) type system at ![typer](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer), which is the basis of Haskell's type system.
 
-c :: Float
-c = 1.0
+The complete type system outlined in ![Typing in Haskell](https://web.cecs.pdx.edu/~mpj/thih/thih.pdf) is still under development in the mid-stage, at ![typer2](https://github.com/pzque/carbon/tree/master/src/main/scala/com/pzque/coco/typer2).
 
-d :: Char        
-d = 'c'  
-
-e :: String     
-e = "string"
-
-f :: [Int]
-f = [1, 2, 3]  
-
-g :: (Int, String, Float) 
-g = (1, "2", 3.0)
-
-h :: {String: Int}
-h = {       
-  "a": 1,
-  "b": 2
-  "c": 3
-}             
-
-i :: {String}
-i = {1, 2, 3}
-```
-
-### Function
-```haskell
-f :: a -> a -> a
-f x y = x + y 
-
-sum :: Int -> Int
-sum n = if n == 1 then 1 else n + sum (n-1)
-
-add :: Int -> Int
-add = \x -> x + 1
-```
-
-## ADT
-```haskell
-
-```
-
+I will resume the development of this project when I have enough time
